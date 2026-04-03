@@ -962,13 +962,32 @@ function normalizeMatchSortTime(value) {
 }
 
 function sortActiveMatches(matches) {
-  return (matches || []).slice().sort((a, b) => {
+  const uniqueMatches = [];
+  const keyedMatchIndexes = new Map();
+  (matches || []).forEach(match => {
+    if (!match) return;
+    if (match._key) {
+      const existingIndex = keyedMatchIndexes.get(match._key);
+      if (existingIndex !== undefined) {
+        uniqueMatches[existingIndex] = match;
+        return;
+      }
+      keyedMatchIndexes.set(match._key, uniqueMatches.length);
+    }
+    uniqueMatches.push(match);
+  });
+
+  return uniqueMatches.slice().sort((a, b) => {
     const dateDiff = normalizeMatchSortTime(b.datePlayed || b.timestamp) - normalizeMatchSortTime(a.datePlayed || a.timestamp);
     if (dateDiff !== 0) return dateDiff;
     const stampDiff = normalizeMatchSortTime(b.timestamp || b.datePlayed) - normalizeMatchSortTime(a.timestamp || a.datePlayed);
     if (stampDiff !== 0) return stampDiff;
     return String(b._key || '').localeCompare(String(a._key || ''));
   });
+}
+
+function upsertActiveMatch(matches, match) {
+  return sortActiveMatches([...(matches || []), match]);
 }
 
 function serializeActiveMatch(match) {
@@ -2259,7 +2278,7 @@ async function submitScore(){
       }
     }
 
-    state.matches = sortActiveMatches([...state.matches, savedMatch]);
+    state.matches = upsertActiveMatch(state.matches, savedMatch);
     syncDerivedState();
     showAlert('submitAlert', 'Score submitted! (Pro-set equiv: ' + conv.winConv + '-' + conv.lossConv + ')', 'success');
     // Reset form
