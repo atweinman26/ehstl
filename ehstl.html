@@ -1029,6 +1029,13 @@ function normalizeParticipantName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ');
 }
 
+let localMatchKeyCounter = 0;
+
+function createLocalMatchKey(prefix) {
+  localMatchKeyCounter += 1;
+  return (prefix || 'local') + '-' + Date.now() + '-' + localMatchKeyCounter;
+}
+
 function buildFirebaseKeySegment(value) {
   return encodeURIComponent(normalizeParticipantName(value)).replace(/[.#$\/\[\]]/g, '_');
 }
@@ -1047,6 +1054,22 @@ function buildMatchupKey(nameA, nameB) {
 
 function getMatchIndexPath(match, seasonInfo) {
   return 'ehstl/matchIndex/' + getSeasonMatchIndexKey(seasonInfo) + '/' + buildFirebaseKeySegment(match.divCode || 'unknown') + '/' + buildMatchupKey(match.winner, match.loser);
+}
+
+function getMatchIndexSnapshot(matches, seasonInfo) {
+  const snapshot = {};
+  const seasonKey = getSeasonMatchIndexKey(seasonInfo);
+
+  (matches || []).forEach(match => {
+    if (!match || !match.divCode || !match.winner || !match.loser) return;
+    const divKey = buildFirebaseKeySegment(match.divCode || 'unknown');
+    const pairKey = buildMatchupKey(match.winner, match.loser);
+    if (!snapshot[seasonKey]) snapshot[seasonKey] = {};
+    if (!snapshot[seasonKey][divKey]) snapshot[seasonKey][divKey] = {};
+    snapshot[seasonKey][divKey][pairKey] = String(match._key || createLocalMatchKey('snapshot'));
+  });
+
+  return snapshot;
 }
 
 function buildStatePathUpdates(payload) {
@@ -1459,6 +1482,10 @@ async function loadStateFromFirebase() {
     console.error("Firebase load failed, falling back to local:", e);
     if (String(e.message || '').includes('/ehstl/state is missing but /ehstl/matches still contains active match records')) {
       state._startupWarning = 'Firebase data looks inconsistent: active matches exist, but /ehstl/state is missing. The app refused to reseed defaults so those matches are not overwritten. Restore /ehstl/state before making more changes.';
+    } else if (localStorage.getItem('ehstl_v3_data')) {
+      state._startupWarning = 'Firebase could not be reached. Showing locally cached league data, which may be stale. Avoid submitting scores or admin edits until the connection is restored.';
+    } else {
+      state._startupWarning = 'Firebase could not be reached and no local cache was available. The app may appear empty until the connection is restored.';
     }
     loadStateFromLocal();
   }
@@ -2807,9 +2834,12 @@ function renderMatchAdminList(){
 async function deleteMatch(matchKey){
   const target = (state.matches || []).find(m => m._key === matchKey);
   if (!target) return alert('That match could not be found.');
+  if (!target._key || !String(target._key).trim()) {
+    return alert('This match is missing its ID and cannot be deleted safely. Reload the page and try again.');
+  }
   if(!confirm('Delete this match? It will be removed from the standings immediately.'))return;
   try{
-    if(firebaseReady && matchKey && !String(matchKey).startsWith('local-')){
+    if(firebaseReady && !String(matchKey).startsWith('local-')){
       const updates = {};
       updates['ehstl/matches/' + matchKey] = null;
       updates[getMatchIndexPath(target, state.seasonInfo)] = null;
@@ -2971,9 +3001,9 @@ async function unarchiveSeason(idx) {
 
   const nextRoster = cloneData(season.roster || {});
   const nextSeasonInfo = season.seasonInfo ? cloneData(season.seasonInfo) : { year: String(season.year).replace(/\s*\(paused\)/, ''), startDate: '', endDate: '' };
-  const restoredMatches = (season.matches || []).map(match => {
-    const matchRef = db.ref('ehstl/matches').push();
-    return { _key: matchRef.key, ...cloneData(match) };
+  const restoredMatches = (season.matches || []).map((match, index) => {
+    const matchKey = firebaseReady ? db.ref('ehstl/matches').push().key : createLocalMatchKey('restore-' + index);
+    return { _key: matchKey, ...cloneData(match) };
   });
 
   const duplicateRestoreMatch = findDuplicateArchivedMatchup(restoredMatches);
@@ -3052,7 +3082,26 @@ function renderDataExport(){
     </div>
     `;
 }
-function exportJSON(){const data={standings:state.standings,players:state.players,matches:getActiveMatchesSnapshotArray(state.matches),roster:state.roster,archivedSeasons:state.archivedSeasons,seasonInfo:state.seasonInfo,customDivisions:state.customDivisions,divRepOverrides:state.divRepOverrides,waitlist:state.waitlist,exportDate:new Date().toISOString()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ehstl_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();}
+function exportJSON(){
+  const data = {
+    standings: state.standings,
+    players: state.players,
+    matches: getActiveMatchesSnapshotArray(state.matches),
+    matchIndex: getMatchIndexSnapshot(state.matches, state.seasonInfo),
+    roster: state.roster,
+    archivedSeasons: state.archivedSeasons,
+    seasonInfo: state.seasonInfo,
+    customDivisions: state.customDivisions,
+    divRepOverrides: state.divRepOverrides,
+    waitlist: state.waitlist,
+    exportDate: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ehstl_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+}
 
 function csvEscape(val){if(val==null)return'';const s=String(val);if(s.includes(',')||s.includes('"')||s.includes('\n'))return'"'+s.replace(/"/g,'""')+'"';return s;}
 function downloadCSV(filename,csvContent){const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();}
@@ -3112,6 +3161,7 @@ async function autoBackup() {
       state: getStatePayload(),
       standings: state.standings,
       matches: getActiveMatchesSnapshotArray(state.matches),
+      matchIndex: getMatchIndexSnapshot(state.matches, state.seasonInfo),
       timestamp: new Date().toISOString()
     };
     await db.ref('ehstl/backups/' + today).update(snapshot);
