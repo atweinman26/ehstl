@@ -1,0 +1,22 @@
+{
+  "name": "ehstl-offsite-backup",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offsite Firebase backup and restore tooling for EHSTL.",
+  "type": "commonjs",
+  "scripts": {
+    "backup": "node scripts/ehstl-backup.js backup",
+    "backup:download-latest": "node scripts/ehstl-backup.js download-latest",
+    "backup:verify": "node scripts/ehstl-backup.js verify",
+    "backup:restore": "node scripts/ehstl-backup.js restore",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0",
+    "googleapis": "^150.0.1"
+  }
+}
+

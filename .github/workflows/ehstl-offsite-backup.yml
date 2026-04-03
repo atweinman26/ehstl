@@ -1,0 +1,158 @@
+name: EHSTL Offsite Backup
+
+on:
+  schedule:
+    - cron: "0 6,7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Gate scheduled run to 2 AM America/New_York
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run_backup=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          gate_result=$(node - <<'EOF'
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            hour: '2-digit',
+            hour12: false
+          });
+          const now = new Date();
+          const previousHour = new Date(now.getTime() - 60 * 60 * 1000);
+          const current = formatter.formatToParts(now).find((part) => part.type === 'hour').value;
+          const previous = formatter.formatToParts(previousHour).find((part) => part.type === 'hour').value;
+          const shouldRun = current === '02' || (current === '03' && previous === '01');
+          process.stdout.write(shouldRun ? 'true' : 'false');
+          EOF
+          )
+
+          if [ "$gate_result" = "true" ]; then
+            echo "run_backup=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_backup=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip duplicate DST schedule slot
+        if: steps.gate.outputs.run_backup != 'true'
+        run: echo "Scheduled trigger landed outside the intended local backup window, so this run is intentionally skipped."
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run_backup == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run_backup == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run_backup == 'true'
+        run: npm ci
+
+      - name: Backup attempt 1
+        id: backup_primary
+        if: steps.gate.outputs.run_backup == 'true'
+        continue-on-error: true
+        run: npm run backup
+        env:
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Wait before retry
+        if: steps.gate.outputs.run_backup == 'true' && steps.backup_primary.outcome == 'failure'
+        run: sleep 300
+
+      - name: Backup attempt 2
+        id: backup_retry
+        if: steps.gate.outputs.run_backup == 'true' && steps.backup_primary.outcome == 'failure'
+        continue-on-error: true
+        run: npm run backup
+        env:
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Open or update failure alert issue
+        if: always() && steps.gate.outputs.run_backup == 'true' && steps.backup_primary.outcome == 'failure' && steps.backup_retry.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'EHSTL offsite backup failure';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `The scheduled EHSTL offsite backup failed twice.`,
+              '',
+              `Timestamp: ${new Date().toISOString()}`,
+              `Workflow run: ${runUrl}`,
+              '',
+              `Logs are preserved in the failed GitHub Actions run above.`
+            ].join('\n');
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }
+
+      - name: Close open failure alert issue after recovery
+        if: always() && steps.gate.outputs.run_backup == 'true' && (steps.backup_primary.outcome == 'success' || steps.backup_retry.outcome == 'success')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'EHSTL offsite backup failure';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const existing = issues.find((issue) => issue.title === title);
+            if (!existing) return;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `A later backup run succeeded: ${runUrl}`
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              state: 'closed'
+            });
+
+      - name: Fail workflow after final backup failure
+        if: steps.gate.outputs.run_backup == 'true' && steps.backup_primary.outcome == 'failure' && steps.backup_retry.outcome == 'failure'
+        run: exit 1
