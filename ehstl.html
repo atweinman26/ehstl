@@ -1181,6 +1181,26 @@ function syncDerivedState() {
   saveStateToLocal();
 }
 
+function getPersistedStateSnapshot(data) {
+  const snapshot = data || {};
+  return {
+    players: snapshot.players || [],
+    roster: snapshot.roster || {},
+    admins: snapshot.admins || {admin:'ehstl2025'},
+    archivedSeasons: snapshot.archivedSeasons || [],
+    scoresAccepting: snapshot.scoresAccepting !== undefined ? snapshot.scoresAccepting : true,
+    archivedDivisions: snapshot.archivedDivisions || [],
+    customDivisions: snapshot.customDivisions || [],
+    divRepOverrides: snapshot.divRepOverrides || {},
+    seasonInfo: snapshot.seasonInfo || getDefaultSeasonInfo(),
+    waitlist: snapshot.waitlist || {}
+  };
+}
+
+function getMatchesSnapshotSignature(matchData) {
+  return JSON.stringify(getActiveMatchesSnapshotArray(normalizeActiveMatches(matchData)));
+}
+
 function rerenderCurrentView(opts) {
   const renderAll = opts && opts.renderAll;
   const currentPage = document.querySelector('.page.active')?.id;
@@ -1317,14 +1337,21 @@ async function initApp() {
   try { document.getElementById('scoreDatePlayed').valueAsDate = new Date(); } catch(e){}
   setMatchFormat('Best of 3 Sets');
   updateScorePageVisibility();
+  if (state._startupWarning) alert(state._startupWarning);
 
-  // Set up real-time listener for Firebase updates (skip first callback — we already loaded state)
+  // Set up real-time listeners, but only suppress the initial callback when it
+  // exactly matches the data we already loaded during startup.
   if (firebaseReady) {
-    let stateListenerSkipFirst = true;
+    const initialStateSignature = JSON.stringify(getPersistedStateSnapshot(getStatePayload()));
+    let stateListenerPrimed = false;
     db.ref('ehstl/state').on('value', (snapshot) => {
-      if (stateListenerSkipFirst) { stateListenerSkipFirst = false; return; }
-      if (ignoringFirebaseUpdates) return; // Skip — we have a pending local write
       const data = snapshot.val();
+      const signature = JSON.stringify(getPersistedStateSnapshot(data));
+      if (!stateListenerPrimed) {
+        stateListenerPrimed = true;
+        if (signature === initialStateSignature) return;
+      }
+      if (ignoringFirebaseUpdates) return; // Skip — we have a pending local write
       if (!data) return;
       const wasLoggedIn = state.loggedIn;
       applyPersistedStateData(data);
@@ -1333,10 +1360,16 @@ async function initApp() {
       rerenderCurrentView();
     });
 
-    let matchesListenerSkipFirst = true;
+    const initialMatchesSignature = getMatchesSnapshotSignature(state.matches);
+    let matchesListenerPrimed = false;
     db.ref('ehstl/matches').on('value', (snapshot) => {
-      if (matchesListenerSkipFirst) { matchesListenerSkipFirst = false; return; }
-      state.matches = normalizeActiveMatches(snapshot.val());
+      const nextMatches = normalizeActiveMatches(snapshot.val());
+      const signature = JSON.stringify(getActiveMatchesSnapshotArray(nextMatches));
+      if (!matchesListenerPrimed) {
+        matchesListenerPrimed = true;
+        if (signature === initialMatchesSignature) return;
+      }
+      state.matches = nextMatches;
       syncDerivedState();
       rerenderCurrentView();
     });
@@ -1377,12 +1410,16 @@ async function loadStateFromFirebase() {
       db.ref('ehstl/matches').once('value')
     ]);
     const data = stateSnapshot.val();
+    const activeMatches = normalizeActiveMatches(matchesSnapshot.val());
     if (data) {
       applyPersistedStateData(data);
-      state.matches = normalizeActiveMatches(matchesSnapshot.val());
+      state.matches = activeMatches;
       syncDerivedState();
       await cleanupLegacyActiveStateFields(data);
     } else {
+      if (activeMatches.length) {
+        throw new Error('Refusing to seed defaults: /ehstl/state is missing but /ehstl/matches still contains active match records.');
+      }
       // First time — seed Firebase with default data
       seedDefaultData();
       const seededMatches = getActiveMatchesSnapshotArray(state.matches).map(match => {
@@ -1401,6 +1438,9 @@ async function loadStateFromFirebase() {
     }
   } catch(e) {
     console.error("Firebase load failed, falling back to local:", e);
+    if (String(e.message || '').includes('/ehstl/state is missing but /ehstl/matches still contains active match records')) {
+      state._startupWarning = 'Firebase data looks inconsistent: active matches exist, but /ehstl/state is missing. The app refused to reseed defaults so those matches are not overwritten. Restore /ehstl/state before making more changes.';
+    }
     loadStateFromLocal();
   }
 }
