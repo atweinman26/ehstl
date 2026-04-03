@@ -4,7 +4,7 @@
       "state": {
         ".read": true,
         "standings": { ".write": true, "$divCode": { ".validate": "newData.hasChildren()", "$index": { ".validate": "newData.hasChild('name') && newData.hasChild('wins') && newData.hasChild('losses') && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length < 100 && newData.child('wins').isNumber() && newData.child('losses').isNumber()" } } },
-        "players": { ".write": true, "$index": { ".validate": "newData.hasChild('first') && newData.hasChild('last') && newData.child('first').isString() && newData.child('last').isString() && newData.child('first').val().length < 100 && newData.child('last').val().length < 100" } },
+        "players": { ".write": true, "$index": { ".validate": "newData.hasChild('firstName') && newData.hasChild('lastName') && newData.child('firstName').isString() && newData.child('lastName').isString() && newData.child('firstName').val().length < 100 && newData.child('lastName').val().length < 100" } },
         "matches": { ".write": true, "$index": { ".validate": "newData.hasChild('winner') && newData.hasChild('loser') && newData.hasChild('divCode') && newData.child('winner').isString() && newData.child('loser').isString() && newData.child('divCode').isString() && newData.child('winner').val().length < 200 && newData.child('loser').val().length < 200" } },
         "roster": { ".write": true, "$divCode": { "$index": { ".validate": "newData.hasChild('first') && newData.hasChild('last') && newData.child('first').isString() && newData.child('last').isString()" } } },
         "admins": { ".write": true, ".read": true, "$username": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length < 100" } },
