@@ -97,7 +97,7 @@ async function fetchLiveSnapshot(firebase) {
 async function backupCommand() {
   const firebase = createFirebaseClient(getFirebaseConfig());
   const driveConfig = getDriveConfig();
-  const drive = createDriveClient(driveConfig.serviceAccount);
+  const drive = createDriveClient(driveConfig);
 
   try {
     const snapshot = await fetchLiveSnapshot(firebase);
@@ -163,7 +163,7 @@ async function loadSnapshotFromFile(inputPath) {
 
 async function downloadLatestCommand(args) {
   const driveConfig = getDriveConfig();
-  const drive = createDriveClient(driveConfig.serviceAccount);
+  const drive = createDriveClient(driveConfig);
   const outputPath = path.resolve(args.output || path.join(process.cwd(), "backups", "latest-backup.json"));
   const artifacts = await listBackupArtifacts(drive, driveConfig.folderId);
   const latest = artifacts
