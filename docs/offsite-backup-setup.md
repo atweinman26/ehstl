@@ -8,6 +8,12 @@ This implementation keeps the backup pipeline at `$0` added platform cost by usi
 
 No Codex Google Drive plugin is required. The runtime talks to the Google Drive API directly.
 
+Important Google Drive note:
+
+- If you use a normal personal Google Drive folder, use OAuth credentials for your own Google account.
+- If you use a Google Workspace Shared Drive, a service account can work.
+- The first implementation attempt failed because service accounts do not have quota in a normal personal My Drive folder.
+
 ## Architecture
 
 - Source: Firebase Realtime Database
@@ -41,18 +47,60 @@ Add these GitHub Actions repository secrets:
   - Full JSON service account key for the Firebase project
 - `GOOGLE_DRIVE_FOLDER_ID`
   - The destination Drive folder ID
-- `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`
-  - Full JSON service account key for the Drive uploader
+- One Google Drive auth option:
+  - `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`
+    - Use this only if the destination is a Shared Drive or other service-account-compatible setup
+  - or all three OAuth secrets:
+    - `GOOGLE_DRIVE_CLIENT_ID`
+    - `GOOGLE_DRIVE_CLIENT_SECRET`
+    - `GOOGLE_DRIVE_REFRESH_TOKEN`
 
 The scripts also accept these locally as normal environment variables.
 
 ## Google Drive Setup
 
+### Recommended for a personal Google Drive account
+
+Use OAuth for your own Google account.
+
+1. In Google Cloud, go to `APIs & Services` -> `Credentials`.
+2. Click `Create Credentials` -> `OAuth client ID`.
+3. If prompted, configure the consent screen first:
+   - choose `External`
+   - app name can be `EHSTL Backup`
+   - add your own Google account as a test user
+4. Create an OAuth client of type `Desktop app`.
+5. Save the generated client ID and client secret.
+6. Generate a refresh token for that client and your Google account.
+
+The easiest one-time way to get the refresh token is to use Google OAuth Playground:
+
+1. Open [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/).
+2. Click the gear icon in the upper right.
+3. Enable `Use your own OAuth credentials`.
+4. Paste your OAuth client ID and client secret.
+5. In the left panel, enter the scope:
+   `https://www.googleapis.com/auth/drive`
+6. Click `Authorize APIs`.
+7. Sign in with the same Google account that owns the Drive folder.
+8. Click `Exchange authorization code for tokens`.
+9. Copy the `Refresh token`.
+
+Store these in GitHub Actions secrets:
+
+- `GOOGLE_DRIVE_CLIENT_ID`
+- `GOOGLE_DRIVE_CLIENT_SECRET`
+- `GOOGLE_DRIVE_REFRESH_TOKEN`
+
+### Alternative for Google Workspace Shared Drive
+
+If you control a Shared Drive, you can keep using a service account:
+
 1. In Google Cloud, enable the Google Drive API.
 2. Create a dedicated service account for backup uploads.
 3. Generate a JSON key for that service account.
-4. In Google Drive, create a dedicated folder for EHSTL backups.
-5. Share that folder with the service account email as `Editor`.
+4. In Google Drive, create a dedicated folder for EHSTL backups inside a Shared Drive.
+5. Share that folder or Shared Drive with the service account email as `Editor`.
 
 Use a dedicated folder. That is the practical least-privilege boundary for this design.
 

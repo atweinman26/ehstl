@@ -7,7 +7,7 @@ const {
   BACKUP_SOURCE
 } = require("./lib/constants");
 const { createDriveClient, createDriveFile, deleteDriveFile, downloadDriveFile, listBackupArtifacts } = require("./lib/drive");
-const { parseJsonEnv, requiredEnv } = require("./lib/env");
+const { optionalEnv, parseJsonEnv, requiredEnv } = require("./lib/env");
 const { createFirebaseClient } = require("./lib/firebase");
 const { getPrunableDriveArtifacts } = require("./lib/retention");
 const { buildSnapshot, getSnapshotChecksum, validateSnapshot } = require("./lib/snapshot");
@@ -40,9 +40,36 @@ function parseArgs(argv) {
 }
 
 function getDriveConfig() {
+  const hasOauth =
+    optionalEnv("GOOGLE_DRIVE_CLIENT_ID")
+    && optionalEnv("GOOGLE_DRIVE_CLIENT_SECRET")
+    && optionalEnv("GOOGLE_DRIVE_REFRESH_TOKEN");
+
+  if (hasOauth) {
+    return {
+      type: "oauth_refresh_token",
+      folderId: requiredEnv("GOOGLE_DRIVE_FOLDER_ID"),
+      clientId: requiredEnv("GOOGLE_DRIVE_CLIENT_ID"),
+      clientSecret: requiredEnv("GOOGLE_DRIVE_CLIENT_SECRET"),
+      refreshToken: requiredEnv("GOOGLE_DRIVE_REFRESH_TOKEN")
+    };
+  }
+
+  const serviceAccountJson = optionalEnv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON");
+  if (serviceAccountJson) {
+    return {
+      type: "service_account",
+      folderId: requiredEnv("GOOGLE_DRIVE_FOLDER_ID"),
+      serviceAccount: parseJsonEnv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+    };
+  }
+
   return {
+    type: "oauth_refresh_token",
     folderId: requiredEnv("GOOGLE_DRIVE_FOLDER_ID"),
-    serviceAccount: parseJsonEnv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+    clientId: requiredEnv("GOOGLE_DRIVE_CLIENT_ID"),
+    clientSecret: requiredEnv("GOOGLE_DRIVE_CLIENT_SECRET"),
+    refreshToken: requiredEnv("GOOGLE_DRIVE_REFRESH_TOKEN")
   };
 }
 

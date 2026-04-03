@@ -4,11 +4,25 @@ const { google } = require("googleapis");
 const { BACKUP_PREFIX, DRIVE_SCOPES } = require("./constants");
 const { parseBackupTimestampFromName } = require("./util");
 
-function createDriveClient(serviceAccount) {
-  const auth = new google.auth.GoogleAuth({
-    credentials: serviceAccount,
-    scopes: DRIVE_SCOPES
-  });
+function createDriveClient(config) {
+  let auth;
+
+  if (config.type === "service_account") {
+    auth = new google.auth.GoogleAuth({
+      credentials: config.serviceAccount,
+      scopes: DRIVE_SCOPES
+    });
+  } else if (config.type === "oauth_refresh_token") {
+    auth = new google.auth.OAuth2(
+      config.clientId,
+      config.clientSecret
+    );
+    auth.setCredentials({
+      refresh_token: config.refreshToken
+    });
+  } else {
+    throw new Error("Unsupported Google Drive auth configuration.");
+  }
 
   return google.drive({
     version: "v3",
