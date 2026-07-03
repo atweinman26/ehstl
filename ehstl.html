@@ -213,7 +213,10 @@ a:hover{text-decoration:underline;}
 .player-contact a{color:var(--primary-light);}
 
 /* ===== DIVISION CONTACT LIST ===== */
-.contact-actions{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;}
+.contact-search-row{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:1rem;}
+.contact-search-row .btn{flex-shrink:0;white-space:nowrap;}
+.contact-name.clickable{cursor:pointer;color:var(--primary-light);transition:var(--transition);}
+.contact-name.clickable:hover{text-decoration:underline;}
 .contact-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-md);padding:0.75rem 1rem;margin-bottom:0.75rem;}
 .contact-card-header{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;padding-bottom:0.5rem;margin-bottom:0.25rem;border-bottom:1px solid var(--border-light);}
 .contact-card-header h4{font-size:0.92rem;font-weight:600;flex:1;min-width:0;margin:0;}
@@ -515,7 +518,6 @@ a:hover{text-decoration:underline;}
     <div class="detail-tabs detail-desktop-tabs" id="detailDesktopTabs">
       <button class="detail-tab active" data-dtpanel="standings-matches" onclick="switchDesktopTab(this)">Standings & Matches</button>
       <button class="detail-tab" data-dtpanel="players-desktop" onclick="switchDesktopTab(this)">Players</button>
-      <button class="detail-tab" data-dtpanel="contacts-desktop" onclick="switchDesktopTab(this)">Contacts</button>
     </div>
     <div class="detail-desktop-panel active" id="dtPanelStandingsMatches">
       <div class="detail-desktop-split" id="detailDesktopSplit">
@@ -532,9 +534,6 @@ a:hover{text-decoration:underline;}
     <div class="detail-desktop-panel" id="dtPanelPlayersDesktop">
       <div id="detailPlayersDesktop"></div>
     </div>
-    <div class="detail-desktop-panel" id="dtPanelContactsDesktop">
-      <div id="detailContactsDesktop"></div>
-    </div>
   </div>
   <!-- Mobile: tabs (hidden on desktop) -->
   <div class="detail-mobile-tabs" id="detailMobileTabs">
@@ -542,12 +541,10 @@ a:hover{text-decoration:underline;}
       <button class="detail-tab active" data-panel="standings" onclick="switchDetailTab(this)">Standings</button>
       <button class="detail-tab" data-panel="matches" onclick="switchDetailTab(this)">Match History</button>
       <button class="detail-tab" data-panel="players" onclick="switchDetailTab(this)">Players</button>
-      <button class="detail-tab" data-panel="contacts" onclick="switchDetailTab(this)">Contacts</button>
     </div>
     <div id="detailStandings" class="detail-panel active"></div>
     <div id="detailMatches" class="detail-panel"></div>
     <div id="detailPlayers" class="detail-panel"></div>
-    <div id="detailContacts" class="detail-panel"></div>
   </div>
 </div>
 
@@ -1652,7 +1649,7 @@ function switchDesktopTab(btn) {
   document.querySelectorAll('#detailDesktopTabs .detail-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.detail-desktop-panel').forEach(p => p.classList.remove('active'));
-  const panelMap = {'standings-matches':'dtPanelStandingsMatches','players-desktop':'dtPanelPlayersDesktop','contacts-desktop':'dtPanelContactsDesktop'};
+  const panelMap = {'standings-matches':'dtPanelStandingsMatches','players-desktop':'dtPanelPlayersDesktop'};
   const panelId = panelMap[btn.dataset.dtpanel] || 'dtPanelStandingsMatches';
   document.getElementById(panelId).classList.add('active');
 }
@@ -1764,7 +1761,7 @@ function renderDivisionDetail(code) {
   document.querySelector('#detailDesktopTabs .detail-tab[data-dtpanel="standings-matches"]').classList.add('active');
   document.querySelectorAll('.detail-desktop-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('dtPanelStandingsMatches').classList.add('active');
-  renderDetailStandings(code); renderDetailMatches(code); renderDetailPlayers(code); renderDetailContacts(code);
+  renderDetailStandings(code); renderDetailMatches(code); renderDetailPlayers(code);
   // Desktop: re-render standings with clickable names for desktop panel too
   const stDesktop = sortStandings(state.standings[code]);
   if(stDesktop.length){
@@ -1777,7 +1774,6 @@ function renderDivisionDetail(code) {
   }
   document.getElementById('detailMatchesDesktop').innerHTML = document.getElementById('detailMatches').innerHTML;
   document.getElementById('detailPlayersDesktop').innerHTML = '<div class="detail-col-header" style="margin-top:0;"><span class="material-icons-round">people</span> Players</div>' + document.getElementById('detailPlayers').innerHTML;
-  document.getElementById('detailContactsDesktop').innerHTML = '<div class="detail-col-header" style="margin-top:0;"><span class="material-icons-round">contact_mail</span> Contacts</div>' + document.getElementById('detailContacts').innerHTML;
 }
 
 function renderDetailStandings(code) {
@@ -1839,34 +1835,10 @@ function clearMatchFilter(divCode) {
   document.getElementById('detailMatchesDesktop').innerHTML = document.getElementById('detailMatches').innerHTML;
 }
 
-function renderDetailPlayers(code) {
-  const roster=state.roster[code]||[];
-  const isD=isDivDoubles(code);
-  if(!roster.length){document.getElementById('detailPlayers').innerHTML='<div class="empty-state"><span class="material-icons-round">people</span><p>No players in this division</p></div>';return;}
-  let html='<div class="search-bar"><span class="material-icons-round">search</span><input class="form-input" placeholder="Search players..." oninput="filterDetailPlayers(this.value)"></div><div id="detailPlayerList">';
-  if(isD){
-    const teams={};roster.forEach(p=>{if(!teams[p.code])teams[p.code]=[];teams[p.code].push(p);});
-    Object.values(teams).forEach(team=>{
-      const names=team.map(p=>`${p.first} ${p.last}`).join(' & ');
-      const initials=team.map(p=>(p.first[0]||'')+(p.last[0]||'')).join('/');
-      html+=`<div class="player-card" data-search="${names.toLowerCase()}"><div class="player-avatar">${initials}</div><div class="player-info"><h4>${names}</h4><div class="player-detail">${team.map(p=>p.neighborhood).filter(Boolean).join(', ')}</div></div><div class="player-contact">${team.map(p=>p.email?`<a href="mailto:${p.email}" title="${escAttr(p.email)}"><span class="material-icons-round" style="font-size:1rem;">email</span></a>`:'').join('')}${team.map(p=>p.phone?`<a href="tel:${p.phone}" title="${escAttr(p.phone)}"><span class="material-icons-round" style="font-size:1rem;">phone</span></a>`:'').join('')}</div></div>`;
-    });
-  } else {
-    roster.forEach(p=>{
-      const initials=(p.first[0]||'')+(p.last[0]||'');
-      const fullN=p.first+' '+p.last;
-      html+=`<div class="player-card" data-search="${p.first.toLowerCase()} ${p.last.toLowerCase()} ${(p.neighborhood||'').toLowerCase()}" onclick="openPlayerProfile('${escAttr(fullN)}')" style="cursor:pointer;"><div class="player-avatar">${initials}</div><div class="player-info"><h4>${p.first} ${p.last}</h4><div class="player-detail">${[p.neighborhood,p.phone].filter(Boolean).join(' &bull; ')}</div></div><div class="player-contact">${p.email?`<a href="mailto:${p.email}" title="${escAttr(p.email)}" onclick="event.stopPropagation()"><span class="material-icons-round" style="font-size:1rem;">email</span></a>`:''}${p.phone?`<a href="tel:${p.phone}" title="${escAttr(p.phone)}" onclick="event.stopPropagation()"><span class="material-icons-round" style="font-size:1rem;">phone</span></a>`:''}</div></div>`;
-    });
-  }
-  html+='</div>';
-  document.getElementById('detailPlayers').innerHTML=html;
-}
-function filterDetailPlayers(q){q=q.toLowerCase();document.querySelectorAll('#detailPlayerList .player-card').forEach(c=>{c.style.display=c.dataset.search.includes(q)?'':'none';});}
-
 // ============================================
-// DIVISION CONTACT LIST
-// Mirrors the spreadsheet division tabs, which showed team email links and
-// team phone numbers directly beside the standings.
+// PLAYERS TAB (merged player + contact list)
+// Contact info shown in full like the spreadsheet division tabs; names open
+// the player profile; searchable; email-all + per-team email links.
 // ============================================
 function contactEmailLink(email){
   const e=String(email||'').trim();
@@ -1880,17 +1852,17 @@ function contactPhoneLink(phone){
 function collectEmails(players){
   return [...new Set((players||[]).map(p=>String(p.email||'').trim()).filter(Boolean))];
 }
-function contactRow(p){
-  return `<div class="contact-row"><div class="contact-name">${escHtml(p.first+' '+p.last)}${p.neighborhood?`<span class="contact-neighborhood">${escHtml(p.neighborhood)}</span>`:''}</div><div class="contact-links">${contactEmailLink(p.email)||'<span class="contact-missing">No email</span>'}${contactPhoneLink(p.phone)||'<span class="contact-missing">No phone</span>'}</div></div>`;
+function contactRow(p,searchable){
+  const fullN=p.first+' '+p.last;
+  const search=searchable?` class="contact-row contact-search-item" data-search="${escAttr((fullN+' '+(p.neighborhood||'')).toLowerCase())}"`:' class="contact-row"';
+  return `<div${search}><div class="contact-name clickable" onclick="openPlayerProfile('${escAttr(fullN)}')">${escHtml(fullN)}${p.neighborhood?`<span class="contact-neighborhood">${escHtml(p.neighborhood)}</span>`:''}</div><div class="contact-links">${contactEmailLink(p.email)||'<span class="contact-missing">No email</span>'}${contactPhoneLink(p.phone)||'<span class="contact-missing">No phone</span>'}</div></div>`;
 }
-function renderDetailContacts(code){
+function renderDetailPlayers(code){
   const roster=state.roster[code]||[];
-  const el=document.getElementById('detailContacts');
-  if(!roster.length){el.innerHTML='<div class="empty-state"><span class="material-icons-round">contact_mail</span><p>No roster contact info for this division yet</p></div>';return;}
+  const el=document.getElementById('detailPlayers');
+  if(!roster.length){el.innerHTML='<div class="empty-state"><span class="material-icons-round">people</span><p>No players in this division</p></div>';return;}
   const allEmails=collectEmails(roster);
-  let html='<div class="contact-actions">';
-  if(allEmails.length)html+=`<a class="btn btn-primary btn-sm" href="mailto:${escAttr(allEmails.join(','))}"><span class="material-icons-round" style="font-size:1rem;">forward_to_inbox</span> Email Entire Division (${allEmails.length})</a>`;
-  html+='</div>';
+  let html=`<div class="contact-search-row"><div class="search-bar" style="flex:1;margin-bottom:0;"><span class="material-icons-round">search</span><input class="form-input" placeholder="Search players..." oninput="filterDetailPlayers(this.value)"></div>${allEmails.length?`<a class="btn btn-primary btn-sm" href="mailto:${escAttr(allEmails.join(','))}" title="Email all ${allEmails.length} players in this division"><span class="material-icons-round" style="font-size:1rem;">forward_to_inbox</span> Email All (${allEmails.length})</a>`:''}</div><div class="detail-player-list">`;
   if(isDivDoubles(code)){
     const teams={};
     roster.forEach(p=>{const c=p.code||'?';if(!teams[c])teams[c]=[];teams[c].push(p);});
@@ -1898,17 +1870,20 @@ function renderDetailContacts(code){
       .sort(([a],[b])=>parseTeamNumber(a,Number.MAX_SAFE_INTEGER)-parseTeamNumber(b,Number.MAX_SAFE_INTEGER)||String(a).localeCompare(String(b)))
       .forEach(([teamCode,members])=>{
         const teamEmails=collectEmails(members);
-        html+=`<div class="contact-card"><div class="contact-card-header"><span class="contact-team-code">${escHtml(teamCode)}</span><h4>${escHtml(members.map(p=>`${p.first} ${p.last}`).join(' & '))}</h4>${teamEmails.length?`<a class="btn btn-outline btn-sm" href="mailto:${escAttr(teamEmails.join(','))}"><span class="material-icons-round" style="font-size:1rem;">email</span> Email Team</a>`:''}</div>${members.map(contactRow).join('')}</div>`;
+        const search=(members.map(p=>`${p.first} ${p.last}`).join(' ')+' '+members.map(p=>p.neighborhood||'').join(' ')+' '+teamCode).toLowerCase();
+        html+=`<div class="contact-card contact-search-item" data-search="${escAttr(search)}"><div class="contact-card-header"><span class="contact-team-code">${escHtml(teamCode)}</span><h4>${escHtml(members.map(p=>`${p.first} ${p.last}`).join(' & '))}</h4>${teamEmails.length?`<a class="btn btn-outline btn-sm" href="mailto:${escAttr(teamEmails.join(','))}"><span class="material-icons-round" style="font-size:1rem;">email</span> Email Team</a>`:''}</div>${members.map(p=>contactRow(p,false)).join('')}</div>`;
       });
   } else {
     html+='<div class="contact-card">';
     roster.slice()
       .sort((a,b)=>parseTeamNumber(a.code,Number.MAX_SAFE_INTEGER)-parseTeamNumber(b.code,Number.MAX_SAFE_INTEGER)||`${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`))
-      .forEach(p=>{html+=contactRow(p);});
+      .forEach(p=>{html+=contactRow(p,true);});
     html+='</div>';
   }
+  html+='</div>';
   el.innerHTML=html;
 }
+function filterDetailPlayers(q){q=q.toLowerCase();document.querySelectorAll('.detail-player-list .contact-search-item').forEach(c=>{c.style.display=(c.dataset.search||'').includes(q)?'':'none';});}
 
 // ============================================
 // SUBMIT SCORE
