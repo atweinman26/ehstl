@@ -212,6 +212,26 @@ a:hover{text-decoration:underline;}
 .player-contact{display:flex;gap:0.75rem;font-size:0.78rem;color:var(--text-secondary);flex-shrink:0;}
 .player-contact a{color:var(--primary-light);}
 
+/* ===== DIVISION CONTACT LIST ===== */
+.contact-actions{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;}
+.contact-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-md);padding:0.75rem 1rem;margin-bottom:0.75rem;}
+.contact-card-header{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;padding-bottom:0.5rem;margin-bottom:0.25rem;border-bottom:1px solid var(--border-light);}
+.contact-card-header h4{font-size:0.92rem;font-weight:600;flex:1;min-width:0;margin:0;}
+.contact-team-code{font-size:0.72rem;font-weight:700;color:var(--primary);background:var(--primary-lighter);border-radius:6px;padding:0.15rem 0.45rem;letter-spacing:0.03em;}
+.contact-row{display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;padding:0.5rem 0;flex-wrap:wrap;}
+.contact-row+.contact-row{border-top:1px solid var(--border-light);}
+.contact-name{font-weight:600;font-size:0.9rem;min-width:0;}
+.contact-neighborhood{display:block;font-weight:400;color:var(--text-muted);font-size:0.78rem;}
+.contact-links{display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end;min-width:0;}
+.contact-link{display:inline-flex;align-items:center;gap:0.35rem;font-size:0.84rem;color:var(--primary-light);text-decoration:none;word-break:break-all;}
+.contact-link:hover{text-decoration:underline;}
+.contact-link .material-icons-round{font-size:1rem;flex-shrink:0;}
+.contact-missing{font-size:0.78rem;color:var(--text-muted);font-style:italic;}
+@media(max-width:640px){
+  .contact-row{flex-direction:column;gap:0.3rem;}
+  .contact-links{align-items:flex-start;}
+}
+
 /* ===== FORM STYLES ===== */
 .form-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:2rem;max-width:640px;}
 .form-group{margin-bottom:1.25rem;}
@@ -495,6 +515,7 @@ a:hover{text-decoration:underline;}
     <div class="detail-tabs detail-desktop-tabs" id="detailDesktopTabs">
       <button class="detail-tab active" data-dtpanel="standings-matches" onclick="switchDesktopTab(this)">Standings & Matches</button>
       <button class="detail-tab" data-dtpanel="players-desktop" onclick="switchDesktopTab(this)">Players</button>
+      <button class="detail-tab" data-dtpanel="contacts-desktop" onclick="switchDesktopTab(this)">Contacts</button>
     </div>
     <div class="detail-desktop-panel active" id="dtPanelStandingsMatches">
       <div class="detail-desktop-split" id="detailDesktopSplit">
@@ -511,6 +532,9 @@ a:hover{text-decoration:underline;}
     <div class="detail-desktop-panel" id="dtPanelPlayersDesktop">
       <div id="detailPlayersDesktop"></div>
     </div>
+    <div class="detail-desktop-panel" id="dtPanelContactsDesktop">
+      <div id="detailContactsDesktop"></div>
+    </div>
   </div>
   <!-- Mobile: tabs (hidden on desktop) -->
   <div class="detail-mobile-tabs" id="detailMobileTabs">
@@ -518,10 +542,12 @@ a:hover{text-decoration:underline;}
       <button class="detail-tab active" data-panel="standings" onclick="switchDetailTab(this)">Standings</button>
       <button class="detail-tab" data-panel="matches" onclick="switchDetailTab(this)">Match History</button>
       <button class="detail-tab" data-panel="players" onclick="switchDetailTab(this)">Players</button>
+      <button class="detail-tab" data-panel="contacts" onclick="switchDetailTab(this)">Contacts</button>
     </div>
     <div id="detailStandings" class="detail-panel active"></div>
     <div id="detailMatches" class="detail-panel"></div>
     <div id="detailPlayers" class="detail-panel"></div>
+    <div id="detailContacts" class="detail-panel"></div>
   </div>
 </div>
 
@@ -919,26 +945,6 @@ const COURTS_DATA = {
   ]
 };
 
-const LEAGUE_LEADERS = [
-  {div:"Singles 1",first:"Cezar Pawlowski",second:"Adam Brozda",cat:"Ladder"},
-  {div:"Singles 2",first:"Mary Campbell",second:"Jason Jaffurs",cat:"Ladder"},
-  {div:"Singles 3",first:"Art Milligan",second:"Vaughn Houck",cat:"Ladder"},
-  {div:"Singles 4",first:"Hillary Wainwright",second:"Guilherme Martini",cat:"Ladder"},
-  {div:"Singles 5",first:"Noah Gasparro",second:"Maria Proto",cat:"Ladder"},
-  {div:"Doubles 1",first:"Neil Friedrich & Abdur Malik",second:"Vijay Gurusamy & Joe Hudak",cat:"Ladder"},
-  {div:"Doubles 2",first:"Paul Beer & Owen Beer",second:"Jeff Gherman & Eric Brotsky",cat:"Ladder"},
-  {div:"Doubles 3",first:"Owen Beer & Bob Beer",second:"Michael Rath & Tony Polley",cat:"Ladder"},
-  {div:"Doubles 4",first:"Mary Hiles & Gigi Stridinger",second:"Albert Reith & Jim Talotta",cat:"Ladder"},
-  {div:"Mixed Doubles A",first:"Denise Hudak & Joe Hudak",second:"Kevin Van Scyoc & Olia Ovcharenko",cat:"Ladder"},
-  {div:"Mixed Doubles B",first:"Melanie Scott & Harry Weston",second:"Gwen Drahnak & Tim Lloyd",cat:"Ladder"},
-  {div:"Mixed Doubles C",first:"Abdur Malik & Ghania Malik",second:"Maria Proto & Alex Ford",cat:"Ladder"},
-  {div:"Super Singles 1",first:"Noah Jemison",second:"Nick Huang",cat:"Invitational"},
-  {div:"Super Singles 2",first:"Art de Mateo",second:"Paul Beer",cat:"Invitational"},
-  {div:"Super Singles 3",first:"Josh Maddock",second:"Timothy Wang",cat:"Invitational"},
-  {div:"Super Doubles",first:"Newell Washburn & Noah Jemison",second:"Ryan Abel & Art de Mateo",cat:"Invitational"},
-  {div:"Championship Doubles",first:"Joe Hudak & Josh Huighe",second:"Chris Strahler & Harry Weston",cat:"Invitational"}
-];
-
 // ============================================
 // STATE
 // ============================================
@@ -1019,6 +1025,24 @@ function parseTeamNumber(teamCode, fallback) {
   const parts = String(teamCode || '').split('-');
   const parsed = parseInt(parts[parts.length - 1], 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+// Standings ranking — mirrors the original spreadsheet sort
+// (sort(W5:AD20, 3 desc, 5 desc, 8 desc, 1 asc)):
+// 1. Matches won, descending
+// 2. Matches played, descending
+// 3. Game percentage, descending
+// 4. Team/player number, ascending
+function compareStandings(a, b) {
+  return (b.wins - a.wins)
+    || (b.played - a.played)
+    || (b.pct - a.pct)
+    || ((a.teamNum || 0) - (b.teamNum || 0))
+    || String(a.name || '').localeCompare(String(b.name || ''));
+}
+
+function sortStandings(entries) {
+  return (entries || []).slice().sort(compareStandings);
 }
 
 function createStandingEntry(teamNum, name) {
@@ -1628,7 +1652,8 @@ function switchDesktopTab(btn) {
   document.querySelectorAll('#detailDesktopTabs .detail-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.detail-desktop-panel').forEach(p => p.classList.remove('active'));
-  const panelId = btn.dataset.dtpanel === 'standings-matches' ? 'dtPanelStandingsMatches' : 'dtPanelPlayersDesktop';
+  const panelMap = {'standings-matches':'dtPanelStandingsMatches','players-desktop':'dtPanelPlayersDesktop','contacts-desktop':'dtPanelContactsDesktop'};
+  const panelId = panelMap[btn.dataset.dtpanel] || 'dtPanelStandingsMatches';
   document.getElementById(panelId).classList.add('active');
 }
 function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
@@ -1711,7 +1736,7 @@ function renderDivisions() {
     if(!divs.length)return;
     html+=`<div class="category-label">${cat}</div><div class="division-grid">`;
     divs.forEach(d=>{
-      const st=(state.standings[d.code]||[]).sort((a,b)=>b.wins-a.wins||b.pct-a.pct);
+      const st=sortStandings(state.standings[d.code]);
       const top3=st.slice(0,3);
       html+=`<div class="div-card" onclick="showDivisionDetail('${d.code}')">
         <div class="div-card-header"><div class="div-card-badge">${d.code}</div><div class="div-card-title"><h3>${d.name}</h3><span>${d.league} &bull; ${st.length} teams</span></div></div>
@@ -1739,9 +1764,9 @@ function renderDivisionDetail(code) {
   document.querySelector('#detailDesktopTabs .detail-tab[data-dtpanel="standings-matches"]').classList.add('active');
   document.querySelectorAll('.detail-desktop-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('dtPanelStandingsMatches').classList.add('active');
-  renderDetailStandings(code); renderDetailMatches(code); renderDetailPlayers(code);
+  renderDetailStandings(code); renderDetailMatches(code); renderDetailPlayers(code); renderDetailContacts(code);
   // Desktop: re-render standings with clickable names for desktop panel too
-  const stDesktop = (state.standings[code]||[]).sort((a,b)=>b.wins-a.wins||b.pct-a.pct);
+  const stDesktop = sortStandings(state.standings[code]);
   if(stDesktop.length){
     let dhtml=`<table class="data-table"><thead><tr><th>#</th><th>Player / Team</th><th>W</th><th>L</th><th>Played</th><th>Games W</th><th>Games L</th><th>Game %</th></tr></thead><tbody>`;
     stDesktop.forEach((p,i)=>{dhtml+=`<tr><td class="rank-cell">${i+1}</td><td class="name-cell clickable" onclick="openPlayerProfile('${escAttr(p.name)}')">${escHtml(p.name)}</td><td><strong>${p.wins}</strong></td><td>${p.losses}</td><td>${p.played}</td><td>${p.gamesWon}</td><td>${p.gamesLost}</td><td class="pct-cell">${(p.pct*100).toFixed(1)}%</td></tr>`;});
@@ -1752,10 +1777,11 @@ function renderDivisionDetail(code) {
   }
   document.getElementById('detailMatchesDesktop').innerHTML = document.getElementById('detailMatches').innerHTML;
   document.getElementById('detailPlayersDesktop').innerHTML = '<div class="detail-col-header" style="margin-top:0;"><span class="material-icons-round">people</span> Players</div>' + document.getElementById('detailPlayers').innerHTML;
+  document.getElementById('detailContactsDesktop').innerHTML = '<div class="detail-col-header" style="margin-top:0;"><span class="material-icons-round">contact_mail</span> Contacts</div>' + document.getElementById('detailContacts').innerHTML;
 }
 
 function renderDetailStandings(code) {
-  const st=(state.standings[code]||[]).sort((a,b)=>b.wins-a.wins||b.pct-a.pct);
+  const st=sortStandings(state.standings[code]);
   if(!st.length){document.getElementById('detailStandings').innerHTML='<div class="empty-state"><span class="material-icons-round">emoji_events</span><p>No standings data yet</p></div>';return;}
   let html=`<table class="data-table"><thead><tr><th>#</th><th>Player / Team</th><th>W</th><th>L</th><th>Played</th><th>Games W</th><th>Games L</th><th>Game %</th></tr></thead><tbody>`;
   st.forEach((p,i)=>{html+=`<tr><td class="rank-cell">${i+1}</td><td class="name-cell clickable" onclick="openPlayerProfile('${escAttr(p.name)}')">${escHtml(p.name)}</td><td><strong>${p.wins}</strong></td><td>${p.losses}</td><td>${p.played}</td><td>${p.gamesWon}</td><td>${p.gamesLost}</td><td class="pct-cell">${(p.pct*100).toFixed(1)}%</td></tr>`;});
@@ -1836,6 +1862,53 @@ function renderDetailPlayers(code) {
   document.getElementById('detailPlayers').innerHTML=html;
 }
 function filterDetailPlayers(q){q=q.toLowerCase();document.querySelectorAll('#detailPlayerList .player-card').forEach(c=>{c.style.display=c.dataset.search.includes(q)?'':'none';});}
+
+// ============================================
+// DIVISION CONTACT LIST
+// Mirrors the spreadsheet division tabs, which showed team email links and
+// team phone numbers directly beside the standings.
+// ============================================
+function contactEmailLink(email){
+  const e=String(email||'').trim();
+  return e?`<a class="contact-link" href="mailto:${escAttr(e)}"><span class="material-icons-round">email</span>${escHtml(e)}</a>`:'';
+}
+function contactPhoneLink(phone){
+  const p=String(phone||'').trim();
+  const digits=p.replace(/[^+\d]/g,'');
+  return p?`<a class="contact-link" href="tel:${escAttr(digits)}"><span class="material-icons-round">phone</span>${escHtml(p)}</a>`:'';
+}
+function collectEmails(players){
+  return [...new Set((players||[]).map(p=>String(p.email||'').trim()).filter(Boolean))];
+}
+function contactRow(p){
+  return `<div class="contact-row"><div class="contact-name">${escHtml(p.first+' '+p.last)}${p.neighborhood?`<span class="contact-neighborhood">${escHtml(p.neighborhood)}</span>`:''}</div><div class="contact-links">${contactEmailLink(p.email)||'<span class="contact-missing">No email</span>'}${contactPhoneLink(p.phone)||'<span class="contact-missing">No phone</span>'}</div></div>`;
+}
+function renderDetailContacts(code){
+  const roster=state.roster[code]||[];
+  const el=document.getElementById('detailContacts');
+  if(!roster.length){el.innerHTML='<div class="empty-state"><span class="material-icons-round">contact_mail</span><p>No roster contact info for this division yet</p></div>';return;}
+  const allEmails=collectEmails(roster);
+  let html='<div class="contact-actions">';
+  if(allEmails.length)html+=`<a class="btn btn-primary btn-sm" href="mailto:${escAttr(allEmails.join(','))}"><span class="material-icons-round" style="font-size:1rem;">forward_to_inbox</span> Email Entire Division (${allEmails.length})</a>`;
+  html+='</div>';
+  if(isDivDoubles(code)){
+    const teams={};
+    roster.forEach(p=>{const c=p.code||'?';if(!teams[c])teams[c]=[];teams[c].push(p);});
+    Object.entries(teams)
+      .sort(([a],[b])=>parseTeamNumber(a,Number.MAX_SAFE_INTEGER)-parseTeamNumber(b,Number.MAX_SAFE_INTEGER)||String(a).localeCompare(String(b)))
+      .forEach(([teamCode,members])=>{
+        const teamEmails=collectEmails(members);
+        html+=`<div class="contact-card"><div class="contact-card-header"><span class="contact-team-code">${escHtml(teamCode)}</span><h4>${escHtml(members.map(p=>`${p.first} ${p.last}`).join(' & '))}</h4>${teamEmails.length?`<a class="btn btn-outline btn-sm" href="mailto:${escAttr(teamEmails.join(','))}"><span class="material-icons-round" style="font-size:1rem;">email</span> Email Team</a>`:''}</div>${members.map(contactRow).join('')}</div>`;
+      });
+  } else {
+    html+='<div class="contact-card">';
+    roster.slice()
+      .sort((a,b)=>parseTeamNumber(a.code,Number.MAX_SAFE_INTEGER)-parseTeamNumber(b.code,Number.MAX_SAFE_INTEGER)||`${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`))
+      .forEach(p=>{html+=contactRow(p);});
+    html+='</div>';
+  }
+  el.innerHTML=html;
+}
 
 // ============================================
 // SUBMIT SCORE
@@ -2327,14 +2400,22 @@ async function submitScore(){
 // LEADERS
 // ============================================
 function renderLeaders(){
+  // Dynamically pull the top two from each active division's live standings,
+  // ranked with the same comparator the standings tables use.
   let html='';
   ['Ladder','Invitational'].forEach(cat=>{
-    const leaders=LEAGUE_LEADERS.filter(l=>l.cat===cat&&(l.first||l.second));if(!leaders.length)return;
-    html+=`<div class="category-label">${cat} Divisions</div><div class="leaders-grid">`;
-    leaders.forEach(l=>{html+=`<div class="leader-card"><div class="leader-card-header"><h4>${l.div}</h4></div><div class="leader-card-body">${l.first?`<div class="leader-row"><span class="leader-medal">&#129351;</span><span>${l.first}</span></div>`:''}${l.second?`<div class="leader-row"><span class="leader-medal">&#129352;</span><span>${l.second}</span></div>`:''}</div></div>`;});
-    html+='</div>';
+    const divs=DIVISIONS_INFO.filter(d=>d.league===cat&&!(state.archivedDivisions||[]).includes(d.code));
+    let cards='';
+    divs.forEach(d=>{
+      const st=sortStandings(state.standings[d.code]).filter(e=>(e.played||0)>0);
+      if(!st.length)return;
+      const medals=['&#129351;','&#129352;'];
+      const rows=st.slice(0,2).map((p,i)=>`<div class="leader-row"><span class="leader-medal">${medals[i]}</span><span>${escHtml(p.name)}</span><span style="margin-left:auto;font-weight:600;font-size:0.82rem;">${p.wins}-${p.losses}</span></div>`).join('');
+      cards+=`<div class="leader-card"><div class="leader-card-header"><h4>${escHtml(d.name)}</h4></div><div class="leader-card-body">${rows}</div></div>`;
+    });
+    if(cards)html+=`<div class="category-label">${cat} Divisions</div><div class="leaders-grid">${cards}</div>`;
   });
-  document.getElementById('leadersContent').innerHTML=html;
+  document.getElementById('leadersContent').innerHTML=html||'<div class="empty-state"><span class="material-icons-round">emoji_events</span><p>No matches recorded yet this season</p></div>';
 }
 
 // ============================================
@@ -2390,7 +2471,7 @@ function renderHistory() {
       if (!hasDivData) return;
       html += `<div class="category-label">${cat}</div><div class="leaders-grid">`;
       divs.forEach(d => {
-        const st = (sel.standings[d.code]||[]).sort((a,b)=>b.wins-a.wins||b.pct-a.pct);
+        const st = sortStandings(sel.standings[d.code]);
         if (!st.length) return;
         const top3 = st.slice(0, 3);
         html += `<div class="leader-card" style="cursor:pointer;" onclick="historySelectedDiv='${d.code}';renderHistory()"><div class="leader-card-header"><h4>${d.name}</h4></div><div class="leader-card-body">`;
@@ -2413,7 +2494,7 @@ function renderHistoryDivDetail(season, divCode) {
   html += `<h3 style="margin-bottom:1rem;">${info.name} — ${season.year}</h3>`;
 
   // Standings table
-  const st = (season.standings[divCode]||[]).sort((a,b)=>b.wins-a.wins||b.pct-a.pct);
+  const st = sortStandings(season.standings[divCode]);
   if (st.length) {
     html += `<h4 style="margin-bottom:0.5rem;color:var(--text-muted);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.04em;">Final Standings</h4>`;
     html += `<table class="data-table" style="margin-bottom:1.5rem;"><thead><tr><th>#</th><th>Player / Team</th><th>W</th><th>L</th><th>Played</th><th>Games W</th><th>Games L</th><th>Game %</th></tr></thead><tbody>`;
@@ -3110,7 +3191,7 @@ function exportStandingsCSV(){
   let csv='Division,Division Code,Rank,Player/Team,Wins,Losses,Played,Games Won,Games Lost,Game Pct\n';
   const activeDivs=DIVISIONS_INFO.filter(d=>!(state.archivedDivisions||[]).includes(d.code));
   activeDivs.forEach(div=>{
-    const st=(state.standings[div.code]||[]).sort((a,b)=>b.wins-a.wins||b.pct-a.pct);
+    const st=sortStandings(state.standings[div.code]);
     st.forEach((p,i)=>{
       csv+=csvEscape(div.name)+','+csvEscape(div.code)+','+(i+1)+','+csvEscape(p.name)+','+p.wins+','+p.losses+','+p.played+','+p.gamesWon+','+p.gamesLost+','+(p.pct*100).toFixed(1)+'%\n';
     });
