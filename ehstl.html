@@ -955,6 +955,30 @@ function cloneData(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function formatCalendarDate(value, options) {
+  if (!value) return '';
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/);
+  if (!match) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString('en-US', options);
+  }
+  const localDate = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return localDate.toLocaleDateString('en-US', options);
+}
+
+function getPittsburghTodayDate(now) {
+  const parts = {};
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now || new Date()).forEach(part => {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+  });
+  return parts.year + '-' + parts.month + '-' + parts.day;
+}
+
 function getDefaultSeasonInfo() {
   return cloneData(DEFAULT_SEASON_INFO);
 }
@@ -1397,7 +1421,7 @@ async function initApp() {
   populateDivisionSelect();
   renderHome();
   setupNav();
-  try { document.getElementById('scoreDatePlayed').valueAsDate = new Date(); } catch(e){}
+  try { document.getElementById('scoreDatePlayed').value = getPittsburghTodayDate(); } catch(e){}
   setMatchFormat('Best of 3 Sets');
   updateScorePageVisibility();
   if (state._startupWarning) alert(state._startupWarning);
@@ -1797,7 +1821,7 @@ function renderDetailMatches(code, filterPlayer) {
   }
   if(!divMatches.length){document.getElementById('detailMatches').innerHTML=filterBar+'<div class="empty-state"><span class="material-icons-round">history</span><p>No matches '+(filterPlayer?'found for this player':'recorded yet')+'</p></div>';return;}
   document.getElementById('detailMatches').innerHTML=filterBar+divMatches.map(m=>{
-    const d=m.datePlayed?new Date(m.datePlayed).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
+    const d=formatCalendarDate(m.datePlayed,{month:'short',day:'numeric',year:'numeric'});
     // Build score display
     const wg = (m.winnerGames === 0 || m.winnerGames === undefined) ? 10 : m.winnerGames;
     const lg = m.loserGames || 0;
@@ -2294,7 +2318,7 @@ async function submitScore(){
   confirmMsg += 'Division: ' + info.name + '\n';
   confirmMsg += 'Winner: ' + winner + '\n';
   confirmMsg += 'Loser: ' + loser + '\n';
-  confirmMsg += 'Date: ' + new Date(date).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}) + '\n';
+  confirmMsg += 'Date: ' + formatCalendarDate(date, {month:'long', day:'numeric', year:'numeric'}) + '\n';
   confirmMsg += 'Format: ' + fmt + '\n';
   confirmMsg += 'Score: ' + scoreDisplay + '\n';
   confirmMsg += 'Standings: ' + conv.winConv + '-' + conv.lossConv + ' (pro-set equivalent)\n';
@@ -2484,7 +2508,7 @@ function renderHistoryDivDetail(season, divCode) {
   if (matches.length) {
     html += `<h4 style="margin-bottom:0.5rem;color:var(--text-muted);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.04em;">Match History (${matches.length} matches)</h4>`;
     matches.forEach(m => {
-      const d = m.datePlayed ? new Date(m.datePlayed).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      const d = formatCalendarDate(m.datePlayed,{month:'short',day:'numeric',year:'numeric'});
       const wg = (m.winnerGames===0||m.winnerGames===undefined)?10:m.winnerGames;
       const lg = m.loserGames||0;
       const rawW = m.rawWinnerGames||wg; const rawL = m.rawLoserGames!==undefined?m.rawLoserGames:lg;
@@ -2882,7 +2906,7 @@ function renderMatchAdminList(){
   filtered=filtered.slice().sort((a,b)=>new Date(b.datePlayed||b.timestamp)-new Date(a.datePlayed||a.timestamp)).slice(0,100);
   if(!filtered.length){document.getElementById('matchAdminList').innerHTML='<div class="empty-state"><p>No matches found</p></div>';return;}
   document.getElementById('matchAdminList').innerHTML=filtered.map(m=>{
-    const d=m.datePlayed?new Date(m.datePlayed).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    const d=formatCalendarDate(m.datePlayed,{month:'short',day:'numeric'});
     const awg=(m.winnerGames===0||m.winnerGames===undefined)?10:m.winnerGames;const alg=m.loserGames||0;
     return`<div class="match-card flex items-center justify-between"><div style="flex:1;"><span class="text-sm text-muted">${d} &bull; ${m.division||m.divCode}</span><div style="font-weight:600;">${escHtml(m.winner)} <span class="text-muted">def.</span> ${escHtml(m.loser)} (${awg}-${alg})${m.sets&&m.sets.length?' <span style="font-size:0.8em;color:var(--text-muted);">['+m.sets.join(', ')+']</span>':''}</div></div><button class="btn btn-danger btn-sm" onclick="deleteMatch('${escAttr(m._key||'')}')">Delete</button></div>`;
   }).join('');
@@ -3842,7 +3866,7 @@ function openPlayerProfile(playerName) {
     allMatches.forEach(m => {
       const isWin = m.winner === playerName || m.winner === fullName;
       const opponent = isWin ? m.loser : m.winner;
-      const d = m.datePlayed ? new Date(m.datePlayed).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+      const d = formatCalendarDate(m.datePlayed,{month:'short',day:'numeric'});
       const divInfo = DIVISIONS_INFO.find(di => di.code === m.divCode);
       const divName = divInfo ? divInfo.name : m.divCode;
       // Build score
